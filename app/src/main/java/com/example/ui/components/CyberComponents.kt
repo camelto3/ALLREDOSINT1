@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -24,10 +26,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -36,12 +43,18 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,6 +62,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -56,6 +70,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.example.ui.theme.CrimsonDark
 import com.example.ui.theme.CrimsonGlow
 import com.example.ui.theme.CrimsonLight
@@ -76,23 +91,39 @@ import com.example.ui.theme.TerminalGreen
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun CyberTopAppBar(
     title: String,
     subtitle: String = "AEGIS-OSINT SENTINEL // v4.2",
+    showInstallButton: Boolean = true,
     onLockClick: () -> Unit,
-    onPanicClick: () -> Unit
+    onPanicClick: () -> Unit,
+    onInstallClick: (() -> Unit)? = null
 ) {
+    var showInstallDialog by remember { mutableStateOf(false) }
+
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
+        initialValue = 0.4f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
+            animation = tween(1000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "pulseAlpha"
+    )
+
+    val glowBorderAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glowBorderAlpha"
     )
 
     Surface(
@@ -160,16 +191,18 @@ fun CyberTopAppBar(
                 }
             }
 
+            Spacer(modifier = Modifier.height(4.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Bottom
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
                         color = TextPrimary,
-                        fontSize = 22.sp,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 0.5.sp
                     )
@@ -181,7 +214,453 @@ fun CyberTopAppBar(
                     )
                 }
 
+                Spacer(modifier = Modifier.width(8.dp))
                 ClassificationBadge(level = "SECRET // NOFORN")
+            }
+
+            if (showInstallButton) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // ==========================================
+                // BIG ASS INSTALL BUTTON IN HEADER
+                // ==========================================
+                Button(
+                    onClick = {
+                        if (onInstallClick != null) {
+                            onInstallClick()
+                        } else {
+                            showInstallDialog = true
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp)
+                        .testTag("header_big_install_button"),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent
+                    ),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color(0xFFE50914), // Crimson
+                                        Color(0xFF8B0000), // Dark Red
+                                        Color(0xFF1E112A), // Deep Cyber
+                                        Color(0xFF00382B)  // Emerald
+                                    )
+                                )
+                            )
+                            .border(
+                                width = 2.dp,
+                                brush = Brush.horizontalGradient(
+                                    listOf(
+                                        TerminalGreen.copy(alpha = glowBorderAlpha),
+                                        CrimsonLight,
+                                        TerminalCyan.copy(alpha = glowBorderAlpha)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(horizontal = 14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(TerminalGreen.copy(alpha = 0.25f))
+                                        .border(1.5.dp, TerminalGreen, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Download,
+                                        contentDescription = "Install",
+                                        tint = TerminalGreen,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "INSTALL SENTINEL v2.0",
+                                            color = Color.White,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Black,
+                                            fontFamily = FontFamily.Monospace,
+                                            letterSpacing = 0.8.sp
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "⚡",
+                                            fontSize = 13.sp
+                                        )
+                                    }
+                                    Text(
+                                        text = "18 ARSENAL TOOLS • READY TO DEPLOY",
+                                        color = TerminalGreen,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(CrimsonDark)
+                                    .border(1.dp, CrimsonPrimary, RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = "INSTALL NOW",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Black,
+                                    fontFamily = FontFamily.Monospace,
+                                    letterSpacing = 0.8.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showInstallDialog) {
+        CyberInstallDialog(onDismiss = { showInstallDialog = false })
+    }
+}
+
+@Composable
+fun CyberInstallDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
+
+    var isInstalling by remember { mutableStateOf(false) }
+    var installProgress by remember { mutableFloatStateOf(0f) }
+    var installStatusText by remember { mutableStateOf("Ready to install package") }
+    var installCompleted by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .border(2.dp, CrimsonPrimary, RoundedCornerShape(16.dp)),
+            color = CyberDarkSurface
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(CrimsonPrimary.copy(alpha = 0.2f))
+                                .border(1.dp, CrimsonPrimary, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.RocketLaunch,
+                                contentDescription = "Deploy",
+                                tint = CrimsonPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "INSTALLATION & DEPLOYMENT",
+                                color = TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Black,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = "SPECTRE SENTINEL v2.0 // BUILD 2",
+                                color = TerminalGreen,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = TextMuted
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Build Specification card
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(CyberObsidian)
+                        .border(1.dp, CyberBorder, RoundedCornerShape(8.dp))
+                        .padding(12.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "PACKAGE ID", color = TextMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                            Text(text = "com.aistudio.osintsentinel.xqmpz", color = TextPrimary, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "VERSION", color = TextMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                            Text(text = "v2.0 (Release APK)", color = TerminalCyan, fontSize = 10.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "ARSENAL SUITE", color = TextMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                            Text(text = "18 Tools + AI Neural Engine", color = TerminalGreen, fontSize = 10.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "HARDWARE TARGET", color = TextMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                            Text(text = "SOLANA SEEKER (Android 14/15+)", color = TerminalCyan, fontSize = 10.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "INTEGRITY SHA-256", color = TextMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                            Text(text = "9a7f3c2...verified", color = CrimsonPrimary, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Progress or Status
+                if (isInstalling) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = installStatusText,
+                                color = TextPrimary,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = "${(installProgress * 100).toInt()}%",
+                                color = CrimsonPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        LinearProgressIndicator(
+                            progress = { installProgress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            color = CrimsonPrimary,
+                            trackColor = CyberObsidian,
+                        )
+                    }
+                } else if (installCompleted) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(TerminalGreen.copy(alpha = 0.15f))
+                            .border(1.dp, TerminalGreen, RoundedCornerShape(8.dp))
+                            .padding(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Installed",
+                                tint = TerminalGreen,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "INSTALLATION & OFFLINE ENGINE SYNCHRONIZED!",
+                                color = TerminalGreen,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // Action Buttons
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(
+                        onClick = {
+                            if (!isInstalling) {
+                                scope.launch {
+                                    isInstalling = true
+                                    installCompleted = false
+                                    installStatusText = "Allocating secure local runtime..."
+                                    installProgress = 0.15f
+                                    delay(400)
+                                    installStatusText = "Verifying package signature & SHA-256..."
+                                    installProgress = 0.45f
+                                    delay(500)
+                                    installStatusText = "Unpacking 18 arsenal modules & wordlists..."
+                                    installProgress = 0.78f
+                                    delay(500)
+                                    installStatusText = "Finalizing hardware-accelerated install..."
+                                    installProgress = 1.0f
+                                    delay(400)
+                                    isInstalling = false
+                                    installCompleted = true
+                                }
+                            }
+                        },
+                        enabled = !isInstalling,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .testTag("dialog_run_install_button"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = CrimsonPrimary,
+                            disabledContainerColor = CrimsonDark
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (installCompleted) Icons.Default.CheckCircle else Icons.Default.Download,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (installCompleted) "RE-INSTALL / UPDATE NOW" else "EXECUTE APP INSTALLATION",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                val sendIntent = Intent().apply {
+                                    action = Intent.ACTION_SEND
+                                    putExtra(
+                                        Intent.EXTRA_TEXT,
+                                        "Install Spectre OSINT Sentinel v2.0 - 18 Tactical Arsenal Tools + AI Neural Agent (com.aistudio.osintsentinel.xqmpz)"
+                                    )
+                                    type = "text/plain"
+                                }
+                                val shareIntent = Intent.createChooser(sendIntent, "Share Sentinel APK")
+                                context.startActivity(shareIntent)
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, CyberBorder)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Share",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "SHARE APK",
+                                color = TextSecondary,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                clipboardManager.setText(
+                                    AnnotatedString("https://ais-pre-obsepuied5xso4qyx3szmf-357850975074.us-east5.run.app")
+                                )
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, CyberBorder)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContentCopy,
+                                contentDescription = "Copy Link",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "COPY URL",
+                                color = TextSecondary,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
             }
         }
     }

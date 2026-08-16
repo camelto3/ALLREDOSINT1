@@ -26,6 +26,8 @@ import com.example.data.repository.OsintRepository
 import com.example.service.CyberChefEngine
 import com.example.service.CyberChefOp
 import com.example.service.PhoneIntelService
+import com.example.service.DiagnosticsLog
+import com.example.service.SelfHealingEngine
 import com.example.service.TtsService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -201,6 +203,20 @@ class OsintViewModel(application: Application) : AndroidViewModel(application) {
 
     val isSpeaking: StateFlow<Boolean> = ttsService.isSpeaking
     val currentSpeakingUtteranceId: StateFlow<String?> = ttsService.currentUtteranceId
+
+    // Self-Healing Engine state
+    val selfHealingLogs: StateFlow<List<DiagnosticsLog>> = SelfHealingEngine.logs
+    val isAutoHealingActive: StateFlow<Boolean> = SelfHealingEngine.autoHealingActive
+    val resolvedPatchesCount: StateFlow<Int> = SelfHealingEngine.resolvedCount
+
+    fun triggerSelfHealingCheck() {
+        val result = SelfHealingEngine.runSystemDiagnostics()
+        _notificationSnackbar.value = result
+    }
+
+    fun toggleAutoHealing() {
+        SelfHealingEngine.toggleAutoHealing()
+    }
 
     // Web Portal Sync Bridge
     private val _webPortalBridgeKey = MutableStateFlow("SPEC-PORTAL-${(1000..9999).random()}-AUTH-OK")
