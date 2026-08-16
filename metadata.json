@@ -1,0 +1,7 @@
+{
+  "name": "Spectre OSINT",
+  "description": "Unified Open Source Intelligence dashboard with real-time alerts, automated reporting, biometric security, DNS/IP/Footprint tools, encrypted dossiers, and Gemini AI agent.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
